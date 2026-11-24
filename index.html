@@ -55,8 +55,8 @@ button{padding:7px 14px;font:inherit;font-weight:600;color:var(--ink);background
 @media print{body{background:#fff}body>*:not(#ov){display:none!important}#ov{position:static;display:block!important;padding:0;background:none}.modal{max-width:none!important;box-shadow:none}.no-print{display:none!important}.only-print{display:inline}}
 .wr{}body:not(.admin) .wr{display:none!important}body:not(.admin) .only-print{display:inline}</style>
 </head>
-<body>
-<div class="topbar"><div class="in" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>UNIVERSITAS NEGERI SURABAYA</b> · Fakultas Teknik · Gedung A10 Teknik Informatika</span><button id="authBtn" class="btn-sm" onclick="authClick()" style="color:#fff;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3)">Login admin</button></div></div>
+<body class="admin">
+<div class="topbar"><div class="in" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>UNIVERSITAS NEGERI SURABAYA</b> · Fakultas Teknik · Gedung A10 Teknik Informatika</span></div></div>
 <header class="hero"><div class="in">
   <h1>Kelas PTI A – E<br>Pendidikan Teknologi Informasi</h1>
   <p>Kelola data mahasiswa, ambil mata kuliah, dan pantau hasil studi.</p>
@@ -106,7 +106,7 @@ const SUPABASE_URL = 'https://kkosnippmadwfqswfttv.supabase.co', SUPABASE_KEY = 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const KELAS = {"nama": "PTI A – E", "prodi": "Pendidikan Teknologi Informasi", "fakultas": "Fakultas Teknik", "kampus": "Universitas Negeri Surabaya", "gedung": "Gedung A10 Teknik Informatika", "tahun": "2026/2027 Ganjil"};
 const MAXSKS = 24, NILAI = ['A', 'AB', 'B', 'BC', 'C', 'D', 'E'], CSRF = '', BOBOT = {A: 4, AB: 3.5, B: 3, BC: 2.5, C: 2, D: 1, E: 0};
-let DATA = [], MK = [], DOSEN = [], KELASLIST = [], SQLCHART = {ipk: [], populer: [], belum: 0}, CAN = false;
+let DATA = [], MK = [], DOSEN = [], KELASLIST = [], SQLCHART = {ipk: [], populer: [], belum: 0}, CAN = true;   // langsung superadmin, tanpa login
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const fmt = n => n.toFixed(2), sum = (a, f) => a.reduce((t, x) => t + f(x), 0);
@@ -380,7 +380,6 @@ async function act(d){
   const run = async p => { const {error} = await p; if (error) throw error; }, a = d.action, id = +d.id || 0;
   const findKrs = kid => { for (const s of DATA) { const r = s.matkul.find(x => x.krs_id === kid); if (r) return [s, r]; } return []; };
   try {
-    if (!CAN) throw new Error('Login sebagai admin dulu untuk mengubah data.');
     if (a === 'delete') { await run(sb.from('mahasiswa').delete().eq('id', id)); flash = ['ok', 'Data mahasiswa dihapus.']; }
     else if (a === 'create' || a === 'update') {
       const row = {nim: d.nim.trim(), nama: d.nama.trim(), jk: d.jk, email: d.email.trim() || null, semester: +d.semester, status: d.status, kelas_id: +d.kelas_id};
@@ -424,21 +423,9 @@ async function act(d){
   if (ferr) { openForm(id, {nim: d.nim.trim(), nama: d.nama.trim(), jk: d.jk || 'L', kelas_id: +d.kelas_id, email: (d.email || '').trim(), semester: d.semester, status: d.status || 'Aktif'}); showFormErr([[ferr.field, ferr.msg]]); }
   else { if (reopen && mhsById(reopen[0])) openDoc(reopen[0], reopen[1]); showToast(flash[0], flash[1]); }
 }
-// ====== LOGIN ADMIN (Supabase Auth): tanpa login hanya bisa melihat data ======
-function setAdmin(on){ CAN = on; document.body.classList.toggle('admin', on); $('authBtn').textContent = on ? 'Logout' : 'Login admin'; }
-function authClick(){
-  if (CAN) return sb.auth.signOut();
-  openM(`<form onsubmit="return doLogin(event)">${mh('Login admin')}<div class="mb"><div class="alert" id="loginErr" hidden><span class="ai">!</span><div id="loginMsg"></div></div>
-    <div class="grid"><div class="field full"><label for="lgEmail">Email</label><input id="lgEmail" type="email" required></div><div class="field full"><label for="lgPass">Password</label><input id="lgPass" type="password" required></div></div></div>
-    <div class="mf"><button type="button" onclick="closeM()">Batal</button><button class="btn-pri">Masuk</button></div></form>`, true, '420px');
-}
-async function doLogin(e){
-  e.preventDefault(); const {error} = await sb.auth.signInWithPassword({email: $('lgEmail').value.trim(), password: $('lgPass').value});
-  if (error) { $('loginMsg').textContent = 'Email atau password salah.'; $('loginErr').hidden = false; } else { closeM(); showToast('ok', 'Login berhasil. Anda bisa mengubah data.'); }
-  return false;
-}
-sb.auth.onAuthStateChange((_e, s) => setAdmin(!!s));
+// ====== MODE SUPERADMIN: tanpa login, tombol tambah/edit/hapus/nilai selalu aktif ======
 (async () => {
+  document.body.classList.add('admin');
   try { await loadData(); } catch (e) { console.error(e); document.querySelector('main').insertAdjacentHTML('afterbegin', `<div class="alert" style="margin-top:20px"><span class="ai">!</span><div><b>Gagal memuat data dari Supabase</b>${esc(e.message || e)}<br>Periksa URL, anon key, dan policy RLS.</div></div>`); }
   renderAll(); if (['#mk', '#dosen'].includes(location.hash)) showTab(location.hash.slice(1));
 })();
