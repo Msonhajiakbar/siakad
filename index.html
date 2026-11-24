@@ -364,7 +364,7 @@ async function loadData(){
   // grafik (dulu subquery SQL, sekarang dihitung di browser)
   SQLCHART.ipk = KELASLIST.map(c => { const v = DATA.filter(s => s.kelas_id === c.id && s.matkul.some(x => x.nilai)).map(ipk); return v.length ? {label: c.nama, val: +(sum(v, x => x) / v.length).toFixed(2)} : null; }).filter(Boolean);
   const ada = MK.filter(x => x.terisi > 0), rata = sum(ada, x => x.terisi) / (ada.length || 1);
-  SQLCHART.populer = ada.filter(x => x.terisi > rata).sort((a, b) => b.terisi - a.terisi || a.kode.localeCompare(b.kode)).slice(0, 6).map(x => ({label: x.kode, tip: x.nama, val: x.terisi}));
+  SQLCHART.populer = ada.filter(x => x.terisi >= rata).sort((a, b) => b.terisi - a.terisi || a.kode.localeCompare(b.kode)).slice(0, 6).map(x => ({label: x.kode, tip: x.nama, val: x.terisi}));
   SQLCHART.belum = DATA.filter(s => s.status === 'Aktif' && !s.matkul.length).length;
 }
 function renderAll(){
